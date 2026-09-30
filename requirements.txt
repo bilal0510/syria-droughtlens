@@ -1,0 +1,7 @@
+pandas
+numpy
+scipy
+matplotlib
+seaborn
+requests
+nbformat      # only needed to rebuild the notebook (build_notebook.py)
