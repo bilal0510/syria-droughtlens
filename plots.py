@@ -114,6 +114,45 @@ def fig_vulnerability(annual, show=True):
     _finish(fig, "fig5_vulnerability.png", show)
 
 
+def fig_risk_skill(metrics, show=True):
+    """Hit rate vs false-alarm rate and AUC for each model."""
+    m = metrics.dropna(subset=["hit_rate"])
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5))
+    x = np.arange(len(m))
+    ax1.bar(x - 0.2, m["hit_rate"] * 100, 0.4, color="#c0392b", label="Dry years caught (hit rate)")
+    ax1.bar(x + 0.2, m["false_alarm_rate"] * 100, 0.4, color="#7f8c8d", label="False alarms")
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(m.index, rotation=20, ha="right")
+    ax1.set_ylabel("%")
+    ax1.set_title("Alert performance (walk-forward)")
+    ax1.legend()
+    ax2.bar(metrics.index, metrics["auc"], color="#2e86c1")
+    ax2.axhline(0.5, ls="--", color="gray")
+    ax2.set_ylim(0.4, 1.0)
+    ax2.set_title("ROC-AUC (0.5 = no skill)")
+    plt.setp(ax2.get_xticklabels(), rotation=20, ha="right")
+    fig.tight_layout()
+    _finish(fig, "fig6_risk_skill.png", show)
+
+
+def fig_risk_heatmap(annual, preds, show=True):
+    """Early-warning probability by region and year; black dots mark years that really were dry."""
+    order = region_order(annual)
+    prob = preds.pivot(index="region", columns="hydro_year", values="prob").loc[order]
+    actual = preds.pivot(index="region", columns="hydro_year", values="dry").loc[order]
+    fig, ax = plt.subplots(figsize=(14, 4.5))
+    sns.heatmap(prob, cmap="YlOrRd", vmin=0, vmax=1, cbar_kws={"label": "Predicted dry-year probability (at 31 Dec)"}, ax=ax)
+    for i in range(actual.shape[0]):
+        for j in range(actual.shape[1]):
+            if actual.iloc[i, j]:
+                ax.plot(j + 0.5, i + 0.5, "o", color="black", markersize=5)
+    ax.set_title("Early-warning risk issued on 31 December (black dot = year really was dry)")
+    ax.set_xlabel("Hydrological year")
+    ax.set_ylabel("")
+    fig.tight_layout()
+    _finish(fig, "fig7_risk_heatmap.png", show)
+
+
 def plot_all(annual, share, show=False):
     fig_anomaly_timeline(annual, show)
     fig_drought_heatmap(annual, show)

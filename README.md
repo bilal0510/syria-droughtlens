@@ -13,7 +13,8 @@ config.py            all settings: locations, variables, thresholds, paths
 fetch.py             download from NASA POWER
 prepare.py           load, validate, clean, hydrological-year features
 analysis.py          annual indicators, drought flags, trends, comparisons
-plots.py             the five figures
+risk_model.py        early-warning model: features, walk-forward validation, scoring
+plots.py             the seven figures
 main.py              runs everything: python main.py
 build_notebook.py    generates notebook/Syria_DroughtLens.ipynb from the modules
 notebook/            submission notebook (generated)
@@ -42,6 +43,8 @@ After editing any module, regenerate the notebook: `python build_notebook.py`.
 3. **Flags:** per-region z-scores. Dry year: rainfall z <= -0.5. Drought: z <= -1. Hot-dry: dry and temperature z >= 0.5.
 4. **Analyses:** trends (OLS, per decade), first vs second half (1982-2003 vs 2004-2025), correlation, regional ranking, share of dry years that are also hot (with Fisher test).
 
+5. **Early-warning model:** on 31 December, predict whether the year will end up dry from Oct-Dec rainfall, temperature and soil wetness plus last year's rainfall. Logistic regression, one pooled model, walk-forward validation (train only on earlier years), compared with a base-rate baseline and a simple rainfall rule.
+
 ## Limitations
 
-Gridded reanalysis (about 50 km), not station data; rainfall less reliable in arid areas. Only 44 years per region. Temperature z-scores use the full period, so the rise in hot-dry years partly reflects warming itself. Pooled regions share droughts, so pooled p-values are indicative only.
+Gridded reanalysis (about 50 km), not station data; rainfall less reliable in arid areas. Only 44 years per region. Temperature z-scores use the full period, so the rise in hot-dry years partly reflects warming itself. Pooled regions share droughts, so pooled p-values are indicative only. The risk model rests on about 300 region-years, so its skill estimates are uncertain; early-season rainfall is part of the annual total, so some skill is expected.

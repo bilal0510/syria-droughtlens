@@ -14,7 +14,8 @@ from fetch import fetch_all
 from prepare import load_raw, check_raw, clean
 from analysis import (build_annual, add_flags, trend_table, period_comparison, correlations,
                       regional_ranking, hot_dry_share, hot_dry_test)
-from plots import plot_all
+from plots import plot_all, fig_risk_skill, fig_risk_heatmap
+from risk_model import FEATURE_SETS, build_features, walk_forward, evaluate, fit_final, coefficients
 
 
 def main():
@@ -52,8 +53,21 @@ def main():
     print("\n=== Fisher test (pooled) ===")
     print(hot_dry_test(annual))
 
-    # 4. Figures
+    # 4. Early-warning risk model
+    feats = build_features(df, annual)
+    preds = {name: walk_forward(feats, name) for name in FEATURE_SETS}
+    metrics = evaluate(preds)
+    metrics.to_csv(TABLES_DIR / "risk_model_metrics.csv")
+    preds["rain_climate_model"].to_csv(TABLES_DIR / "risk_predictions.csv", index=False)
+    print("\n=== Early-warning model (walk-forward) ===")
+    print(metrics.round(3).to_string())
+    print("\nStandardised coefficients (final model):")
+    print(coefficients(fit_final(feats)).round(3).to_string())
+
+    # 5. Figures
     plot_all(annual, share, show=False)
+    fig_risk_skill(metrics, show=False)
+    fig_risk_heatmap(annual, preds["rain_climate_model"], show=False)
     print("\nDone. Tables in outputs/tables, figures in outputs/figures.")
 
 

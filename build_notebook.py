@@ -9,7 +9,7 @@ from pathlib import Path
 
 import nbformat as nbf
 
-MODULES = ["config", "fetch", "prepare", "analysis", "plots"]
+MODULES = ["config", "fetch", "prepare", "analysis", "risk_model", "plots"]
 IMPORT_FROM_CONFIG = re.compile(r"^from config import .*\n", re.MULTILINE)
 
 
@@ -53,6 +53,7 @@ https://power.larc.nasa.gov/docs/services/api/temporal/daily/
     code(module_source("fetch")),
     code(module_source("prepare")),
     code(module_source("analysis")),
+    code(module_source("risk_model")),
     code(module_source("plots")),
     md("""
 ## 2. Load and inspect the data
@@ -125,7 +126,52 @@ print(hot_dry_test(annual))
     md("### 9.5 Regional vulnerability"),
     code("fig_vulnerability(annual)"),
     md("""
-## 10. Findings
+## 10. Early-warning risk model
+**Question:** on 31 December, three months into the hydrological year, can we tell whether the year will end up dry?
+
+- **Inputs (all known by 31 Dec):** Oct-Dec rainfall, Oct-Dec temperature, Oct-Dec soil wetness, previous year's rainfall.
+- **Model:** logistic regression, one pooled model for all regions, inputs standardised per region.
+- **Honest evaluation:** *walk-forward* validation. To predict year Y the model is trained only on years before Y, so it never sees the future.
+- **Baselines:** always predicting the base rate, and a simple rule (alert if early rainfall z <= -0.5).
+- **Alert:** issued when predicted probability >= the alert threshold (set in `config.py`).
+"""),
+    code("""
+feats = build_features(df, annual)
+preds = {name: walk_forward(feats, name) for name in FEATURE_SETS}
+metrics = evaluate(preds)
+display(metrics.round(3))
+
+best = preds["rain_climate_model"]
+y = best["dry"].astype(int)
+alert = best["prob"] >= ALERT_THRESHOLD
+print(f"Test years {best['hydro_year'].min()}-{best['hydro_year'].max()}, {len(best)} region-years, "
+      f"{y.mean():.0%} of them dry.")
+print(f"At the {ALERT_THRESHOLD:.0%} alert threshold the model flagged {alert[y == 1].mean():.0%} of dry years "
+      f"with {alert[y == 0].mean():.0%} false alarms (ROC-AUC {metrics.loc['rain_climate_model', 'auc']:.2f}; 0.50 = no skill).")
+"""),
+    md("### 10.1 Does temperature add anything beyond rainfall?\nCompare `rain_model` with `rain_climate_model` in the table above, and look at the standardised coefficients (positive = raises dry-year risk)."),
+    code("""
+bundle = fit_final(feats)
+display(coefficients(bundle).round(3).to_frame("standardised coefficient"))
+"""),
+    md("### 10.2 Skill and the early-warning timeline"),
+    code("fig_risk_skill(metrics)"),
+    code("fig_risk_heatmap(annual, preds['rain_climate_model'])"),
+    md("### 10.3 Case studies: would the model have warned us?\nPredicted probability on 31 December for years that were widely dry (where inside the test period)."),
+    code("""
+case_years = [yr for yr in (2000, 2008, 2014, 2025) if yr in best["hydro_year"].values]
+case = best[best["hydro_year"].isin(case_years)].copy()
+case["prob_%"] = (case["prob"] * 100).round(0)
+display(case.pivot(index="region", columns="hydro_year", values="prob_%"))
+display(case.pivot(index="region", columns="hydro_year", values="dry").rename_axis(columns="actually dry?"))
+"""),
+    md("### 10.4 Decision-support function\nGiven a region and the first three months of data, return a risk level. This is the core of the proposed tool."),
+    code("""
+example = predict_risk(bundle, "Damascus", rain_early=40, prev_rain=250, temp_early=17.5, soil_early=0.35)
+print(example)
+"""),
+    md("""
+## 11. Findings
 *Numbers below come from our run. Re-check them against the outputs above if the code or data change.*
 
 1. **Warming is strong and universal:** +0.37 to +0.49 C per decade in all 8 regions (p < 0.001). The second period is 0.74-1.02 C warmer than the first.
@@ -135,15 +181,15 @@ print(hot_dry_test(annual))
 5. **Most exposed regions:** Deir ez-Zor and Raqqa have the lowest rainfall and the highest variability.
 6. **Validation:** the flagged drought years match known events (1989-90, 1999-2000, 2008, 2014, 2025).
 
-## 11. Limitations
+## 12. Limitations
 - NASA POWER is gridded reanalysis (about 50 km), not station data. Rainfall is model/satellite-derived and less reliable in arid areas; use it for trends and anomalies, not exact totals.
 - Nearby places can share one grid cell, so results describe broad regional patterns, not individual cities.
 - Only 44 years per region: small counts, and simple trend tests that ignore autocorrelation.
 - Temperature z-scores use the full period, and all regions warmed, so the rise in hot-dry years partly reflects the warming trend itself. The honest claim is that dry years now occur on a warmer baseline.
 - Pooled regions share droughts, so the pooled significance test is indicative only.
-- No local water-use, irrigation or crop data.
+- No local water-use, irrigation or crop data.\n- Risk model: about 300 region-years, one pooled model, walk-forward test of roughly 30 years. Early-season rainfall is part of the annual total, so some skill is expected. The dry-year label uses full-period statistics, a mild simplification. Skill estimates are uncertain at this sample size.
 
-## 12. Next steps
+## 13. Next steps
 - Lagged drought-risk model (previous-year rainfall and temperature as predictors).
 - Add soil-moisture and evaporation drought indices; compare with station data where available.
 - Dashboard for decision support.

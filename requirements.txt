@@ -4,4 +4,5 @@ scipy
 matplotlib
 seaborn
 requests
+scikit-learn
 nbformat      # only needed to rebuild the notebook (build_notebook.py)

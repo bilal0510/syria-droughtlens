@@ -47,3 +47,11 @@ DATA_CLEAN = Path("data/processed/power_clean.csv")
 DATA_ANNUAL = Path("data/processed/annual.csv")
 TABLES_DIR = Path("outputs/tables")
 FIG_DIR = Path("outputs/figures")
+
+# ---- Early-warning risk model ---------------------------------------------
+# At the end of the cut-off months (31 Dec) we predict whether the hydrological
+# year will end up dry. Only data up to that date is used as input.
+CUTOFF_MONTHS = (10, 11, 12)    # Oct-Dec = first three months of the hydrological year
+MIN_TRAIN_YEARS = 12            # walk-forward evaluation starts after this many training years
+ALERT_THRESHOLD = 0.30          # predicted probability that triggers an alert
+RISK_BANDS = (0.30, 0.50)       # low < 0.30 <= moderate < 0.50 <= high
