@@ -32,7 +32,7 @@ python main.py            # downloads on first run, then reuses data/raw/power_r
 python main.py --fetch    # force a fresh download
 ```
 
-Or open `notebook/Syria_DroughtLens.ipynb` in Colab and choose *Runtime > Run all*.
+Or run `notebook/Syria_DroughtLens.ipynb`
 
 After editing any module, regenerate the notebook: `python build_notebook.py`.
 
